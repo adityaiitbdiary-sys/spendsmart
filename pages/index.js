@@ -14,6 +14,7 @@ export default function Home() {
   const [loadingAdvice, setLoadingAdvice] = useState(false);
   const [message, setMessage] = useState("");
   const [advice, setAdvice] = useState("");
+  const [range, setRange] = useState("all"); // "today" | "month" | "all"
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -50,7 +51,7 @@ export default function Home() {
       .from("expenses")
       .select("*")
       .order("expense_date", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     if (error) setMessage(error.message);
     else setExpenses(data || []);
@@ -124,22 +125,32 @@ export default function Home() {
     setLoadingAdvice(false);
   }
 
-  const totalAmount = expenses.reduce(
+  // ---------- totals + filters ----------
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const expensesThisMonth = expenses.filter((e) => {
+    const d = new Date(e.expense_date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+
+  const expensesToday = expenses.filter((e) => e.expense_date === todayStr);
+
+  let filteredExpenses = expenses;
+  if (range === "today") filteredExpenses = expensesToday;
+  else if (range === "month") filteredExpenses = expensesThisMonth;
+
+  const totalFiltered = filteredExpenses.reduce(
     (sum, e) => sum + Number(e.amount || 0),
     0
   );
 
-  const totalThisMonth = (() => {
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
-    return expenses
-      .filter((e) => {
-        const d = new Date(e.expense_date);
-        return d.getMonth() === m && d.getFullYear() === y;
-      })
-      .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-  })();
+  const totalThisMonth = expensesThisMonth.reduce(
+    (sum, e) => sum + Number(e.amount || 0),
+    0
+  );
 
   return (
     <>
@@ -154,7 +165,6 @@ export default function Home() {
           href="https://fonts.googleapis.com/css2?family=Satisfy&family=Poppins:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
-
       </Head>
 
       <div
@@ -176,15 +186,17 @@ export default function Home() {
               display: "flex",
               justifyContent: "space-between",
               marginBottom: 24,
+              alignItems: "center",
             }}
           >
             <div>
               <div
                 style={{
                   fontSize: 52,
-                  fontWeight: 600,
+                  fontWeight: 400,
                   letterSpacing: "0.5px",
                   fontFamily: "'Satisfy', cursive",
+                  lineHeight: 1,
                 }}
               >
                 SpendSmart{" "}
@@ -197,8 +209,8 @@ export default function Home() {
                   β
                 </span>
               </div>
-              <div style={{ opacity: 0.8, marginTop: 4 }}>
-                Track your expenses with AI insights.
+              <div style={{ opacity: 0.8, marginTop: 6, fontSize: 14 }}>
+                Track your expenses and get AI-powered insights.
               </div>
             </div>
 
@@ -223,6 +235,7 @@ export default function Home() {
                   padding: "8px 16px",
                   background: "rgba(255,255,255,0.1)",
                   borderRadius: 20,
+                  fontSize: 13,
                 }}
               >
                 Logged in as <b>{user.email}</b>
@@ -232,17 +245,58 @@ export default function Home() {
 
           {user && (
             <>
+              {/* FILTER TABS */}
+              <div
+                style={{
+                  display: "inline-flex",
+                  padding: 4,
+                  borderRadius: 999,
+                  background: "rgba(0,0,0,0.35)",
+                  marginBottom: 16,
+                  gap: 4,
+                }}
+              >
+                {[
+                  { id: "today", label: "Today" },
+                  { id: "month", label: "This Month" },
+                  { id: "all", label: "All" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setRange(opt.id)}
+                    style={{
+                      borderRadius: 999,
+                      border: "none",
+                      padding: "6px 14px",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      background:
+                        range === opt.id
+                          ? "rgba(255,255,255,0.9)"
+                          : "transparent",
+                      color: range === opt.id ? "#1b1538" : "#f5f5ff",
+                      fontWeight: range === opt.id ? 600 : 400,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
               {/* SUMMARY CARDS */}
               <div
                 style={{
                   display: "flex",
                   gap: 16,
                   marginBottom: 24,
+                  flexWrap: "wrap",
                 }}
               >
                 <div
                   style={{
                     flex: 1,
+                    minWidth: 220,
                     background: "rgba(255,255,255,0.1)",
                     padding: 16,
                     borderRadius: 18,
@@ -250,16 +304,29 @@ export default function Home() {
                   }}
                 >
                   <div style={{ opacity: 0.8, fontSize: 14 }}>
-                    Total spent
+                    Total spent ({range === "today"
+                      ? "today"
+                      : range === "month"
+                      ? "this month"
+                      : "all time"}
+                    )
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 700 }}>
-                    ₹{totalAmount}
+                    ₹{totalFiltered.toFixed(0)}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                    {range === "today"
+                      ? `Today • ${filteredExpenses.length} entries`
+                      : range === "month"
+                      ? `This month • ${filteredExpenses.length} entries`
+                      : `All time • ${filteredExpenses.length} entries`}
                   </div>
                 </div>
 
                 <div
                   style={{
                     flex: 1,
+                    minWidth: 220,
                     background: "rgba(255,255,255,0.1)",
                     padding: 16,
                     borderRadius: 18,
@@ -267,10 +334,13 @@ export default function Home() {
                   }}
                 >
                   <div style={{ opacity: 0.8, fontSize: 14 }}>
-                    This month’s spending
+                    This month&apos;s spending
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 700 }}>
-                    ₹{totalThisMonth}
+                    ₹{totalThisMonth.toFixed(0)}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
+                    Based on your entries for this month
                   </div>
                 </div>
               </div>
@@ -299,7 +369,8 @@ export default function Home() {
                     </div>
 
                     <div style={{ opacity: 0.7, fontSize: 13, marginBottom: 10 }}>
-                      Type: <i>"Pizza 450"</i> or <i>"Auto 120 office"</i>.
+                      Type <i>"Pizza 450"</i> or <i>"Auto 120 office"</i>. Gemini
+                      will understand it.
                     </div>
 
                     <div style={{ display: "flex", gap: 8 }}>
@@ -311,6 +382,7 @@ export default function Home() {
                           border: "1px solid rgba(255,255,255,0.2)",
                           background: "rgba(15,18,45,0.9)",
                           color: "white",
+                          outline: "none",
                         }}
                         placeholder="e.g. Pizza 450"
                         value={text}
@@ -328,6 +400,7 @@ export default function Home() {
                           border: "none",
                           fontWeight: 600,
                           cursor: "pointer",
+                          opacity: loadingAdd ? 0.8 : 1,
                         }}
                       >
                         {loadingAdd ? "Adding…" : "Add"}
@@ -355,35 +428,59 @@ export default function Home() {
                         marginBottom: 10,
                         display: "flex",
                         justifyContent: "space-between",
+                        fontSize: 14,
                       }}
                     >
                       <span>Recent expenses</span>
                       <span style={{ opacity: 0.6, fontSize: 12 }}>
-                        Showing {expenses.length} entries
+                        Showing {filteredExpenses.length} entries
                       </span>
                     </div>
 
-                    {expenses.length === 0 && (
-                      <p style={{ opacity: 0.7 }}>No expenses yet.</p>
+                    {filteredExpenses.length === 0 && (
+                      <p style={{ opacity: 0.7, fontSize: 13 }}>
+                        No expenses for this range.
+                      </p>
                     )}
 
                     <div style={{ maxHeight: 260, overflowY: "auto" }}>
-                      <table style={{ width: "100%", fontSize: 14 }}>
+                      <table
+                        style={{
+                          width: "100%",
+                          fontSize: 13,
+                          borderCollapse: "collapse",
+                        }}
+                      >
                         <thead>
                           <tr style={{ opacity: 0.7 }}>
-                            <th align="left">Date</th>
-                            <th align="left">Item</th>
-                            <th align="left">Category</th>
-                            <th align="right">Amount</th>
+                            <th align="left" style={{ paddingBottom: 6 }}>
+                              Date
+                            </th>
+                            <th align="left" style={{ paddingBottom: 6 }}>
+                              Item
+                            </th>
+                            <th align="left" style={{ paddingBottom: 6 }}>
+                              Category
+                            </th>
+                            <th align="right" style={{ paddingBottom: 6 }}>
+                              Amount
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {expenses.map((e) => (
+                          {filteredExpenses.map((e) => (
                             <tr key={e.id}>
-                              <td>{e.expense_date}</td>
-                              <td>{e.item}</td>
-                              <td>{e.category}</td>
-                              <td align="right">₹{e.amount}</td>
+                              <td style={{ padding: "4px 0" }}>
+                                {e.expense_date}
+                              </td>
+                              <td style={{ padding: "4px 0" }}>{e.item}</td>
+                              <td style={{ padding: "4px 0" }}>{e.category}</td>
+                              <td
+                                align="right"
+                                style={{ padding: "4px 0", fontWeight: 600 }}
+                              >
+                                ₹{Number(e.amount || 0).toFixed(0)}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -400,7 +497,7 @@ export default function Home() {
                         "linear-gradient(135deg, #8f6bff, #a56aff, #c46dff)",
                       padding: 20,
                       borderRadius: 22,
-                      minHeight: 240,
+                      minHeight: 260,
                       color: "white",
                       display: "flex",
                       flexDirection: "column",
@@ -449,6 +546,7 @@ export default function Home() {
                           border: "none",
                           fontWeight: 700,
                           cursor: "pointer",
+                          opacity: loadingAdvice ? 0.8 : 1,
                         }}
                       >
                         {loadingAdvice ? "Thinking…" : "Get Advice"}
@@ -458,6 +556,12 @@ export default function Home() {
                 </div>
               </div>
             </>
+          )}
+
+          {!user && (
+            <p style={{ marginTop: 24, fontSize: 13, opacity: 0.75 }}>
+              Sign in to start tracking your expenses with AI.
+            </p>
           )}
         </div>
       </div>
