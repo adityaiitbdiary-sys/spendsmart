@@ -1,63 +1,63 @@
 // pages/api/analyze.js
-import fetch from 'node-fetch'
-import { createClient } from '@supabase/supabase-js'
-
-const SUPABASE_URL = process.env.SUPABASE_URL
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-const GEMINI_KEY = process.env.GEMINI_API_KEY
-const APP_CLIENT_SECRET = process.env.APP_CLIENT_SECRET || ''
-
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' })
-
-  if (APP_CLIENT_SECRET && req.headers['x-app-secret'] !== APP_CLIENT_SECRET) {
-    return res.status(401).json({ error: 'unauthorized header' })
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "method not allowed, use POST" });
   }
 
-  const accessToken = req.headers.authorization?.replace('Bearer ', '')
-  if (!accessToken) return res.status(401).json({ error: 'missing token' })
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_KEY) {
+    return res.status(500).json({ error: "Missing Gemini API key" });
+  }
 
-  // verify user
-  const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(accessToken)
-  if (userErr || !userData?.user) return res.status(401).json({ error: 'invalid token' })
-  const userId = userData.user.id
+  const { expenses } = req.body || {};
+  if (!Array.isArray(expenses) || expenses.length === 0) {
+    return res.status(400).json({ error: "expenses array is required" });
+  }
 
-  // fetch user's expenses
-  const { data: expenses, error: fetchErr } = await supabaseAdmin
-    .from('expenses')
-    .select('item,amount,category,expense_date')
-    .eq('owner', userId)
-    .order('expense_date', { ascending: false })
+  const prompt = `
+You are a friendly personal finance coach.
 
-  if (fetchErr) return res.status(500).json({ error: 'db error' })
-
-  // build analysis prompt
-  const prompt = `You are a helpful financial coach. Given the user's expenses JSON below, provide:
-1) A short summary of spending distribution (categories and percentages).
-2) Two observations (what stands out).
-3) Two practical tips to reduce spending.
-Return plain text, human-friendly.
-
-Expenses:
+User's monthly expenses (as JSON array):
 ${JSON.stringify(expenses)}
-`
 
-  const r = await fetch('https://api.gemini.example/v1/generate', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GEMINI_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ prompt, max_tokens: 400 })
-  })
+Write a short analysis (max ~150 words) with:
+1. Spending overview (which categories are high/low).
+2. 1–2 positive compliments.
+3. 2 actionable tips to improve or save money.
 
-  if (!r.ok) {
-    const textErr = await r.text()
-    return res.status(500).json({ error: 'gemini error: ' + textErr })
+Use simple, conversational English. No bullet points, just paragraphs.
+  `;
+
+  try {
+    const r = await fetch(
+      "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" +
+        GEMINI_KEY,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const data = await r.json();
+    const text =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (!text) {
+      return res.status(500).json({
+        error: "Gemini returned no text",
+        raw: data,
+      });
+    }
+
+    return res.status(200).json({ analysis: text.trim() });
+  } catch (err) {
+    return res.status(500).json({
+      error: "Request to Gemini failed",
+      details: String(err),
+    });
   }
-  const json = await r.json()
-  const analysis = json?.text ?? JSON.stringify(json)
-  return res.status(200).json({ analysis })
 }
