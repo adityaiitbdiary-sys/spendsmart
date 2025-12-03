@@ -151,9 +151,10 @@ export default function Home() {
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Satisfy&family=Poppins:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
+
       </Head>
 
       <div
@@ -180,17 +181,17 @@ export default function Home() {
             <div>
               <div
                 style={{
-                  fontSize: 40,
+                  fontSize: 52,
                   fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  fontFamily: "'Clash Display', sans-serif",
+                  letterSpacing: "0.5px",
+                  fontFamily: "'Satisfy', cursive",
                 }}
               >
                 SpendSmart{" "}
                 <span
                   style={{
-                    fontSize: 20,
-                    fontFamily: "'Clash Display', sans-serif",
+                    fontSize: 26,
+                    fontFamily: "'Satisfy', cursive",
                   }}
                 >
                   β
