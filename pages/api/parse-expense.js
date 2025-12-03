@@ -50,20 +50,21 @@ Now return JSON only.
         raw: data,
       });
     }
-
     try {
-      const parsed = JSON.parse(modelText.trim());
-      return res.status(200).json(parsed);
-    } catch (e) {
-      // Gemini didn't give valid JSON, return raw response for debugging
-      return res.status(500).json({
-        error: "Model did not return valid JSON",
-        modelText,
-        raw: data,
-      });
-    }
-    
-  } catch (err) {
-    return res.status(500).json({ error: "Request to Gemini failed", details: String(err) });
-  }
+  // REMOVE ```json and ``` from the model output
+  const cleaned = modelText
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+
+  const parsed = JSON.parse(cleaned);
+  return res.status(200).json(parsed);
+
+} catch (e) {
+  return res.status(500).json({
+    error: "Model did not return valid JSON",
+    modelText,
+    raw: data
+  });
 }
+    
