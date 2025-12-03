@@ -1,5 +1,4 @@
 // pages/api/parse-expense.js
-import fetch from "node-fetch";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -37,34 +36,39 @@ Now return JSON only.
         }),
       }
     );
+
     const data = await r.json();
 
-    // Try to read the text from Gemini's response
     const modelText =
       data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (!modelText) {
-      // Gemini returned something unexpected – send it back so we can see it
       return res.status(500).json({
         error: "Gemini returned no text",
         raw: data,
       });
     }
+
     try {
-  // REMOVE ```json and ``` from the model output
-  const cleaned = modelText
-    .replace(/```json/gi, "")
-    .replace(/```/g, "")
-    .trim();
+      // Remove ```json and ``` from the model output
+      const cleaned = modelText
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
 
-  const parsed = JSON.parse(cleaned);
-  return res.status(200).json(parsed);
-
-} catch (e) {
-  return res.status(500).json({
-    error: "Model did not return valid JSON",
-    modelText,
-    raw: data
-  });
+      const parsed = JSON.parse(cleaned);
+      return res.status(200).json(parsed);
+    } catch (e) {
+      return res.status(500).json({
+        error: "Model did not return valid JSON",
+        modelText,
+        raw: data,
+      });
+    }
+  } catch (err) {
+    return res.status(500).json({
+      error: "Request to Gemini failed",
+      details: String(err),
+    });
+  }
 }
-    
