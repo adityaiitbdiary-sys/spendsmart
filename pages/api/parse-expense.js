@@ -27,7 +27,7 @@ Now return JSON only.
 
   try {
     const r = await fetch(
-      "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" +
+      "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=" +
         GEMINI_KEY,
       {
         method: "POST",
