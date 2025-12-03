@@ -6,6 +6,17 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnon);
 
+const CATEGORY_COLORS = [
+  "#ff9f40",
+  "#4bc0c0",
+  "#ff6384",
+  "#36a2eb",
+  "#9966ff",
+  "#ffcd56",
+  "#7bdcb5",
+  "#f78da7",
+];
+
 export default function Home() {
   const [user, setUser] = useState(null);
   const [text, setText] = useState("");
@@ -151,6 +162,44 @@ export default function Home() {
     (sum, e) => sum + Number(e.amount || 0),
     0
   );
+
+  // ---------- category donut data (for current filter) ----------
+  const categoryTotalsMap = filteredExpenses.reduce((acc, e) => {
+    const cat = e.category || "Other";
+    const amt = Number(e.amount || 0);
+    acc[cat] = (acc[cat] || 0) + amt;
+    return acc;
+  }, {});
+
+  const categoryEntries = Object.entries(categoryTotalsMap).sort(
+    (a, b) => b[1] - a[1]
+  );
+  const chartTotal = categoryEntries.reduce((sum, [, v]) => sum + v, 0);
+
+  let currentAngle = 0;
+  const slices = categoryEntries.map(([name, value], index) => {
+    const angle = chartTotal > 0 ? (value / chartTotal) * 360 : 0;
+    const start = currentAngle;
+    const end = currentAngle + angle;
+    currentAngle = end;
+    return {
+      name,
+      value,
+      start,
+      end,
+      color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+    };
+  });
+
+  const chartGradient =
+    chartTotal > 0
+      ? `conic-gradient(${slices
+          .map(
+            (s) =>
+              `${s.color} ${s.start.toFixed(1)}deg ${s.end.toFixed(1)}deg`
+          )
+          .join(", ")})`
+      : "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), rgba(0,0,0,0.2))";
 
   return (
     <>
@@ -304,7 +353,8 @@ export default function Home() {
                   }}
                 >
                   <div style={{ opacity: 0.8, fontSize: 14 }}>
-                    Total spent ({range === "today"
+                    Total spent (
+                    {range === "today"
                       ? "today"
                       : range === "month"
                       ? "this month"
@@ -489,15 +539,16 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* RIGHT SIDE — AI COACH */}
-                <div>
+                {/* RIGHT SIDE — AI COACH + DONUT */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* AI COACH CARD */}
                   <div
                     style={{
                       background:
                         "linear-gradient(135deg, #8f6bff, #a56aff, #c46dff)",
                       padding: 20,
                       borderRadius: 22,
-                      minHeight: 260,
+                      minHeight: 230,
                       color: "white",
                       display: "flex",
                       flexDirection: "column",
@@ -551,6 +602,117 @@ export default function Home() {
                       >
                         {loadingAdvice ? "Thinking…" : "Get Advice"}
                       </button>
+                    </div>
+                  </div>
+
+                  {/* DONUT CHART CARD */}
+                  <div
+                    style={{
+                      background: "rgba(9,11,32,0.9)",
+                      padding: 16,
+                      borderRadius: 18,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      display: "flex",
+                      gap: 16,
+                      alignItems: "center",
+                      minHeight: 190,
+                    }}
+                  >
+                    <div style={{ flex: 0, position: "relative" }}>
+                      <div
+                        style={{
+                          width: 120,
+                          height: 120,
+                          borderRadius: "50%",
+                          background: chartGradient,
+                          position: "relative",
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 20,
+                            borderRadius: "50%",
+                            background: "rgba(9,11,32,1)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 12,
+                            opacity: 0.8,
+                            textAlign: "center",
+                            padding: 4,
+                          }}
+                        >
+                          {chartTotal > 0
+                            ? "Categories"
+                            : "No data for\nthis range"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          marginBottom: 4,
+                          fontSize: 14,
+                        }}
+                      >
+                        Categories ({range === "today"
+                          ? "today"
+                          : range === "month"
+                          ? "this month"
+                          : "all time"}
+                        )
+                      </div>
+                      {categoryEntries.length === 0 ? (
+                        <p style={{ fontSize: 12, opacity: 0.7 }}>
+                          Add some expenses to see category-wise breakdown.
+                        </p>
+                      ) : (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                            fontSize: 12,
+                          }}
+                        >
+                          {categoryEntries.slice(0, 5).map(([name, value], i) => (
+                            <div
+                              key={name}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 8,
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <span
+                                  style={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: "50%",
+                                    backgroundColor:
+                                      CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+                                    marginRight: 6,
+                                  }}
+                                />
+                                <span>{name}</span>
+                              </div>
+                              <span style={{ fontWeight: 600 }}>
+                                ₹{value.toFixed(0)}
+                              </span>
+                            </div>
+                          ))}
+                          {categoryEntries.length > 5 && (
+                            <div style={{ fontSize: 11, opacity: 0.7 }}>
+                              + {categoryEntries.length - 5} more categories
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
