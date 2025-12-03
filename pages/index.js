@@ -152,6 +152,29 @@ export default function Home() {
     0
   );
 
+  // ---------- category totals for current range ----------
+  const categoryColors: Record<string, string> = {
+    Food: "#ffb347",
+    Transportation: "#6ad4ff",
+    Transport: "#6ad4ff",
+    Auto: "#6ad4ff",
+    Health: "#ff6b8b",
+    Household: "#9cf29c",
+    Personal: "#f6b1ff",
+    Shopping: "#f2a2ff",
+    Other: "#d0d0ff",
+  };
+
+  const categoryTotalsMap: Record<string, number> = {};
+  filteredExpenses.forEach((e) => {
+    const key = e.category || "Other";
+    categoryTotalsMap[key] = (categoryTotalsMap[key] || 0) + Number(e.amount || 0);
+  });
+
+  const topCategories = Object.entries(categoryTotalsMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
+
   return (
     <>
       <Head>
@@ -304,7 +327,8 @@ export default function Home() {
                   }}
                 >
                   <div style={{ opacity: 0.8, fontSize: 14 }}>
-                    Total spent ({range === "today"
+                    Total spent (
+                    {range === "today"
                       ? "today"
                       : range === "month"
                       ? "this month"
@@ -468,36 +492,62 @@ export default function Home() {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredExpenses.map((e) => (
-                            <tr key={e.id}>
-                              <td style={{ padding: "4px 0" }}>
-                                {e.expense_date}
-                              </td>
-                              <td style={{ padding: "4px 0" }}>{e.item}</td>
-                              <td style={{ padding: "4px 0" }}>{e.category}</td>
-                              <td
-                                align="right"
-                                style={{ padding: "4px 0", fontWeight: 600 }}
-                              >
-                                ₹{Number(e.amount || 0).toFixed(0)}
-                              </td>
-                            </tr>
-                          ))}
+                          {filteredExpenses.map((e) => {
+                            const key = e.category || "Other";
+                            const bg =
+                              categoryColors[key] ||
+                              "rgba(255,255,255,0.08)";
+                            return (
+                              <tr key={e.id}>
+                                <td style={{ padding: "4px 0" }}>
+                                  {e.expense_date}
+                                </td>
+                                <td style={{ padding: "4px 0" }}>{e.item}</td>
+                                <td style={{ padding: "4px 0" }}>
+                                  <span
+                                    style={{
+                                      display: "inline-block",
+                                      padding: "2px 8px",
+                                      borderRadius: 999,
+                                      background: bg,
+                                      color: "#1a1028",
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {key}
+                                  </span>
+                                </td>
+                                <td
+                                  align="right"
+                                  style={{ padding: "4px 0", fontWeight: 600 }}
+                                >
+                                  ₹{Number(e.amount || 0).toFixed(0)}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 </div>
 
-                {/* RIGHT SIDE — AI COACH */}
-                <div>
+                {/* RIGHT SIDE — AI COACH + TOP CATEGORIES */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 16,
+                  }}
+                >
                   <div
                     style={{
                       background:
                         "linear-gradient(135deg, #8f6bff, #a56aff, #c46dff)",
                       padding: 20,
                       borderRadius: 22,
-                      minHeight: 260,
+                      minHeight: 220,
                       color: "white",
                       display: "flex",
                       flexDirection: "column",
@@ -552,6 +602,74 @@ export default function Home() {
                         {loadingAdvice ? "Thinking…" : "Get Advice"}
                       </button>
                     </div>
+                  </div>
+
+                  {/* TOP CATEGORIES CARD */}
+                  <div
+                    style={{
+                      background: "rgba(9,11,32,0.9)",
+                      padding: 16,
+                      borderRadius: 18,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      fontSize: 13,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Top categories ({range === "today"
+                        ? "today"
+                        : range === "month"
+                        ? "this month"
+                        : "all time"}
+                      )
+                    </div>
+                    {topCategories.length === 0 && (
+                      <p style={{ opacity: 0.7 }}>
+                        No data yet for this range.
+                      </p>
+                    )}
+                    {topCategories.map(([cat, amount]) => {
+                      const bg =
+                        categoryColors[cat] || "rgba(255,255,255,0.15)";
+                      const pct =
+                        totalFiltered > 0
+                          ? Math.round((amount / totalFiltered) * 100)
+                          : 0;
+                      return (
+                        <div
+                          key={cat}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 6,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center" }}>
+                            <span
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                background: bg,
+                                marginRight: 8,
+                              }}
+                            />
+                            <span>{cat}</span>
+                          </div>
+                          <div style={{ opacity: 0.85 }}>
+                            ₹{amount.toFixed(0)}{" "}
+                            <span style={{ opacity: 0.7, fontSize: 12 }}>
+                              ({pct}%)
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
