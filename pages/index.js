@@ -27,6 +27,12 @@ export default function Home() {
   const [advice, setAdvice] = useState("");
   const [range, setRange] = useState("all"); // "today" | "month" | "all"
 
+  // auth form state
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session?.user) {
@@ -48,15 +54,6 @@ export default function Home() {
     };
   }, []);
 
-  async function signIn() {
-    const email = prompt("Enter your email (same as Supabase user):");
-    if (!email) return;
-
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) alert(error.message);
-    else alert("Magic link sent! Check your inbox.");
-  }
-
   async function loadExpenses() {
     const { data, error } = await supabase
       .from("expenses")
@@ -66,6 +63,52 @@ export default function Home() {
 
     if (error) setMessage(error.message);
     else setExpenses(data || []);
+  }
+
+  // ---------- AUTH: email + password ----------
+
+  async function handleSignIn() {
+    setAuthError("");
+    if (!authEmail || !authPassword) {
+      setAuthError("Please enter email and password.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: authPassword,
+      });
+      if (error) setAuthError(error.message);
+      // on success, onAuthStateChange will set user
+    } catch (e) {
+      setAuthError(String(e));
+    }
+    setAuthLoading(false);
+  }
+
+  async function handleSignUp() {
+    setAuthError("");
+    if (!authEmail || !authPassword) {
+      setAuthError("Please enter email and password.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: authEmail,
+        password: authPassword,
+      });
+      if (error) setAuthError(error.message);
+      else {
+        setAuthError(
+          "If email confirmation is enabled, check your inbox once, then sign in."
+        );
+      }
+    } catch (e) {
+      setAuthError(String(e));
+    }
+    setAuthLoading(false);
   }
 
   async function addExpense() {
@@ -263,22 +306,7 @@ export default function Home() {
               </div>
             </div>
 
-            {!user ? (
-              <button
-                onClick={signIn}
-                style={{
-                  background: "#fff",
-                  padding: "8px 16px",
-                  borderRadius: 20,
-                  color: "#1b1538",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  border: "none",
-                }}
-              >
-                Sign in
-              </button>
-            ) : (
+            {user && (
               <div
                 style={{
                   padding: "8px 16px",
@@ -292,6 +320,121 @@ export default function Home() {
             )}
           </div>
 
+          {/* AUTH CARD WHEN LOGGED OUT */}
+          {!user && (
+            <div
+              style={{
+                background: "rgba(9,11,32,0.9)",
+                padding: 20,
+                borderRadius: 18,
+                border: "1px solid rgba(255,255,255,0.15)",
+                maxWidth: 420,
+                marginBottom: 24,
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 16 }}>
+                Sign in to SpendSmart
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  opacity: 0.8,
+                  marginBottom: 12,
+                }}
+              >
+                Use email + password. If it&apos;s your first time, click{" "}
+                <b>Sign Up</b>.
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <input
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    background: "rgba(15,18,45,0.9)",
+                    color: "white",
+                    outline: "none",
+                    fontSize: 14,
+                  }}
+                  placeholder="Email"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                />
+                <input
+                  type="password"
+                  style={{
+                    padding: 8,
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    background: "rgba(15,18,45,0.9)",
+                    color: "white",
+                    outline: "none",
+                    fontSize: 14,
+                  }}
+                  placeholder="Password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                />
+              </div>
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  gap: 8,
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button
+                  onClick={handleSignUp}
+                  disabled={authLoading}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(255,255,255,0.3)",
+                    background: "transparent",
+                    color: "#f5f5ff",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    opacity: authLoading ? 0.7 : 1,
+                  }}
+                >
+                  Sign Up
+                </button>
+                <button
+                  onClick={handleSignIn}
+                  disabled={authLoading}
+                  style={{
+                    padding: "6px 18px",
+                    borderRadius: 999,
+                    border: "none",
+                    background:
+                      "linear-gradient(135deg, #8f6bff, #b06cff)",
+                    color: "white",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    opacity: authLoading ? 0.7 : 1,
+                  }}
+                >
+                  {authLoading ? "Working…" : "Sign In"}
+                </button>
+              </div>
+              {authError && (
+                <p
+                  style={{
+                    marginTop: 8,
+                    fontSize: 12,
+                    color: "salmon",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {authError}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* DASHBOARD WHEN LOGGED IN */}
           {user && (
             <>
               {/* FILTER TABS */}
@@ -628,27 +771,27 @@ export default function Home() {
                           position: "relative",
                         }}
                       >
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 20,
-                            borderRadius: "50%",
-                            background: "rgba(9,11,32,1)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 12,
-                            opacity: 0.8,
-                            textAlign: "center",
-                            padding: 4,
-                          }}
-                        >
-                          {chartTotal > 0
-                            ? "Categories"
-                            : "No data for\nthis range"}
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 20,
+                              borderRadius: "50%",
+                              background: "rgba(9,11,32,1)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 12,
+                              opacity: 0.8,
+                              textAlign: "center",
+                              padding: 4,
+                            }}
+                          >
+                            {chartTotal > 0
+                              ? "Categories"
+                              : "No data for\nthis range"}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
                     <div style={{ flex: 1 }}>
                       <div
@@ -658,7 +801,8 @@ export default function Home() {
                           fontSize: 14,
                         }}
                       >
-                        Categories ({range === "today"
+                        Categories (
+                        {range === "today"
                           ? "today"
                           : range === "month"
                           ? "this month"
@@ -718,12 +862,6 @@ export default function Home() {
                 </div>
               </div>
             </>
-          )}
-
-          {!user && (
-            <p style={{ marginTop: 24, fontSize: 13, opacity: 0.75 }}>
-              Sign in to start tracking your expenses with AI.
-            </p>
           )}
         </div>
       </div>
