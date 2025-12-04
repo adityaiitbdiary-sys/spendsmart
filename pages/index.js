@@ -33,6 +33,9 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
 
+  // responsive layout
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session?.user) {
@@ -52,6 +55,19 @@ export default function Home() {
     return () => {
       listener?.subscription?.unsubscribe?.();
     };
+  }, []);
+
+  useEffect(() => {
+    const check = () => {
+      if (typeof window !== "undefined") {
+        setIsMobile(window.innerWidth < 900);
+      }
+    };
+    check();
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", check);
+      return () => window.removeEventListener("resize", check);
+    }
   }, []);
 
   async function loadExpenses() {
@@ -101,9 +117,8 @@ export default function Home() {
       });
       if (error) setAuthError(error.message);
       else {
-        setAuthError(
-          "If email confirmation is enabled, check your inbox once, then sign in."
-        );
+        // account created, no need to show scary red message
+        setAuthError("");
       }
     } catch (e) {
       setAuthError(String(e));
@@ -279,6 +294,8 @@ export default function Home() {
               justifyContent: "space-between",
               marginBottom: 24,
               alignItems: "center",
+              gap: 16,
+              flexWrap: "wrap",
             }}
           >
             <div>
@@ -542,7 +559,7 @@ export default function Home() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1fr",
                   gap: 20,
                 }}
               >
@@ -566,10 +583,11 @@ export default function Home() {
                       will understand it.
                     </div>
 
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <input
                         style={{
                           flex: 1,
+                          minWidth: 0,
                           padding: 10,
                           borderRadius: 999,
                           border: "1px solid rgba(255,255,255,0.2)",
@@ -594,6 +612,7 @@ export default function Home() {
                           fontWeight: 600,
                           cursor: "pointer",
                           opacity: loadingAdd ? 0.8 : 1,
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {loadingAdd ? "Adding…" : "Add"}
@@ -759,9 +778,10 @@ export default function Home() {
                       gap: 16,
                       alignItems: "center",
                       minHeight: 190,
+                      flexWrap: "wrap",
                     }}
                   >
-                    <div style={{ flex: 0, position: "relative" }}>
+                    <div style={{ flex: "0 0 auto", position: "relative" }}>
                       <div
                         style={{
                           width: 120,
@@ -771,29 +791,29 @@ export default function Home() {
                           position: "relative",
                         }}
                       >
-                          <div
-                            style={{
-                              position: "absolute",
-                              inset: 20,
-                              borderRadius: "50%",
-                              background: "rgba(9,11,32,1)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 12,
-                              opacity: 0.8,
-                              textAlign: "center",
-                              padding: 4,
-                            }}
-                          >
-                            {chartTotal > 0
-                              ? "Categories"
-                              : "No data for\nthis range"}
-                          </div>
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 20,
+                            borderRadius: "50%",
+                            background: "rgba(9,11,32,1)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 12,
+                            opacity: 0.8,
+                            textAlign: "center",
+                            padding: 4,
+                          }}
+                        >
+                          {chartTotal > 0
+                            ? "Categories"
+                            : "No data for\nthis range"}
                         </div>
                       </div>
+                    </div>
 
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 160 }}>
                       <div
                         style={{
                           fontWeight: 600,
